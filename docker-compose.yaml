@@ -4,7 +4,6 @@ services:
     image: ghcr.io/lemker/unifi-os-server:5.0.6-linux-arm64
     container_name: unifi-os-server
     privileged: true
-    cgroupns: host
     sysctls:
       - net.ipv4.ip_unprivileged_port_start=0
     cap_add:
