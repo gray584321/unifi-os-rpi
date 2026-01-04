@@ -14,7 +14,7 @@ services:
       - UOS_UUID=${UOS_UUID:-}
     volumes:
       - ${DATA_DIR}/data:/data
-      - ${DATA_DIR}/logs:/var/log/unifi-os
+      - ${DATA_DIR}/logs:/var/log/unifi
       - ${DATA_DIR}/certs:/certs
       - ${DATA_DIR}/var-lib-unifi:/var/lib/unifi
       - ${DATA_DIR}/var-lib-mongodb:/var/lib/mongodb
