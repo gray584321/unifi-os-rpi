@@ -39,7 +39,7 @@ if command -v docker &> /dev/null; then
 else
     echo -e "${YELLOW}  Installing Docker Engine...${NC}"
     curl -fsSL https://get.docker.com | sh
-    echo -e "${GREEN}  Docker installed successfully${NC}
+    echo -e "${GREEN}  Docker installed successfully${NC}"
 fi
 
 echo ""
