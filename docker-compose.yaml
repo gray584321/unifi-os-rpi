@@ -11,7 +11,7 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - UOS_SYSTEM_IP=${UOS_SYSTEM_IP}
-      - UOS_UUID=${UOS_UUID:-}
+      # - UOS_UUID=${UOS_UUID:-}
     volumes:
       - ${DATA_DIR}/data:/data
       - ${DATA_DIR}/logs:/var/log/unifi
