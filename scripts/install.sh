@@ -1,92 +1,131 @@
 #!/bin/bash
-set -e
+# =============================================================================
+# UniFi OS Server - Installation Script
+# =============================================================================
+# Purpose: Install Docker and configure UniFi OS Server on Raspberry Pi
+# =============================================================================
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+set -euo pipefail
 
-echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}  UniFi OS Server - RPi Install Script${NC}"
-echo -e "${GREEN}============================================${NC}"
-echo ""
+readonly SCRIPT_VERSION="1.0.0"
+readonly DOCKER_BASE_URL="https://get.docker.com"
 
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}This script must be run as root (use sudo)${NC}"
-   exit 1
-fi
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m'
 
-# Check if running on Raspberry Pi
-if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
-    echo -e "${YELLOW}Warning: This doesn't appear to be a Raspberry Pi${NC}"
-    echo "Continuing anyway..."
-fi
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
-# Check if 64-bit OS
-ARCH=$(uname -m)
-if [[ "$ARCH" != "aarch64" ]]; then
-    echo -e "${RED}Error: This requires a 64-bit OS. Current architecture: $ARCH${NC}"
-    echo "Please install Raspberry Pi OS 64-bit"
-    exit 1
-fi
+main() {
+    local data_dir="${DATA_DIR:-/opt/unifi-os}"
+    local version="${UNIFI_OS_VERSION:-5.0.6}"
 
-echo -e "${GREEN}[1/6]${NC} Checking existing Docker installation..."
-if command -v docker &> /dev/null; then
-    echo -e "${GREEN}  Docker is already installed${NC}"
-    docker --version
-else
-    echo -e "${YELLOW}  Installing Docker Engine...${NC}"
-    curl -fsSL https://get.docker.com | sh
-    echo -e "${GREEN}  Docker installed successfully${NC}"
-fi
+    echo "============================================"
+    echo "  UniFi OS Server - Installation Script"
+    echo "  Version: ${SCRIPT_VERSION}"
+    echo "============================================"
+    echo ""
 
-echo ""
-echo -e "${GREEN}[2/6]${NC} Enabling Docker service on boot..."
-systemctl enable docker
-systemctl start docker
+    if [[ $EUID -ne 0 ]]; then
+        log_error "This script must be run as root (use sudo)"
+        exit 1
+    fi
 
-echo ""
-echo -e "${GREEN}[3/6]${NC} Adding user to docker group..."
-if id "$SUDO_USER" &>/dev/null; then
-    usermod -aG docker "$SUDO_USER"
-    echo -e "${GREEN}  User '$SUDO_USER' added to docker group${NC}"
-else
-    echo -e "${YELLOW}  Could not find SUDO_USER, skipping group addition${NC}"
-fi
+    check_architecture
+    check_raspberry_pi
+    install_docker
+    enable_docker_service
+    add_user_to_docker
+    install_docker_compose
+    create_directory_structure "$data_dir"
+    pull_image "$version"
 
-echo ""
-echo -e "${GREEN}[4/6]${NC} Installing docker-compose..."
-if ! command -v docker compose &> /dev/null; then
+    echo ""
+    echo "============================================"
+    log_info "Installation Complete!"
+    echo "============================================"
+    echo ""
+    echo "Next steps:"
+    echo "1. Edit .env with your configuration: cp .env.example .env && nano .env"
+    echo "2. Start UniFi OS: docker compose up -d"
+    echo "3. Access at: https://<UOS_SYSTEM_IP>:11443"
+    echo ""
+    echo "Reboot recommended for cgroup functionality:"
+    echo "  sudo reboot"
+}
+
+check_architecture() {
+    local arch
+    arch=$(uname -m)
+    if [[ "$arch" != "aarch64" ]]; then
+        log_error "This requires a 64-bit OS. Current architecture: $arch"
+        log_error "Please install Raspberry Pi OS 64-bit"
+        exit 1
+    fi
+    log_info "Architecture check passed: $arch"
+}
+
+check_raspberry_pi() {
+    if grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+        log_info "Raspberry Pi detected"
+    else
+        log_warn "This does not appear to be a Raspberry Pi"
+        log_warn "Continuing anyway..."
+    fi
+}
+
+install_docker() {
+    if command -v docker &> /dev/null; then
+        log_info "Docker is already installed"
+        docker --version
+        return 0
+    fi
+    log_info "Installing Docker Engine..."
+    curl -fsSL "$DOCKER_BASE_URL" | sh
+    log_info "Docker installed successfully"
+}
+
+enable_docker_service() {
+    log_info "Enabling Docker service on boot..."
+    systemctl enable docker
+    systemctl start docker
+    log_info "Docker service enabled and started"
+}
+
+add_user_to_docker() {
+    if [[ -n "${SUDO_USER:-}" ]] && id "$SUDO_USER" &>/dev/null; then
+        usermod -aG docker "$SUDO_USER"
+        log_info "User '$SUDO_USER' added to docker group"
+    fi
+}
+
+install_docker_compose() {
+    if command -v docker compose &> /dev/null; then
+        log_info "docker-compose is already installed"
+        return 0
+    fi
+    log_info "Installing docker-compose..."
     apt-get update -qq
     apt-get install -y -qq docker-compose-plugin
-    echo -e "${GREEN}  docker-compose installed${NC}"
-else
-    echo -e "${GREEN}  docker-compose is already installed${NC}"
-fi
+    log_info "docker-compose installed"
+}
 
-echo ""
-echo -e "${GREEN}[5/6]${NC} Creating directory structure..."
-# Read DATA_DIR from .env if it exists, otherwise use default
-DATA_DIR="${DATA_DIR:-/opt/unifi-os}"
-mkdir -p "$DATA_DIR"/{data,logs,certs,var-lib-unifi,var-lib-mongodb}
-chmod 755 "$DATA_DIR" -R
-echo -e "${GREEN}  Created $DATA_DIR${NC}"
+create_directory_structure() {
+    log_info "Creating directory structure..."
+    mkdir -p "$1"/{data,logs,certs,var-lib-unifi,var-lib-mongodb}
+    chmod 755 "$1" -R
+    log_info "Created $1"
+}
 
-echo ""
-echo -e "${GREEN}[6/6]${NC} Pulling UniFi OS Server image..."
-docker pull ghcr.io/lemker/unifi-os-server:5.0.6-linux-arm64
+pull_image() {
+    local image="ghcr.io/lemker/unifi-os-server:${1}-linux-arm64"
+    log_info "Pulling image: $image"
+    docker pull "$image"
+}
 
-echo ""
-echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}  Installation Complete!${NC}"
-echo -e "${GREEN}============================================${NC}"
-echo ""
-echo "Next steps:"
-echo "1. Edit .env with your configuration: cp .env.example .env && nano .env"
-echo "2. Start UniFi OS: docker compose up -d"
-echo "3. Access at: https://<UOS_SYSTEM_IP>:11443"
-echo ""
-echo -e "${YELLOW}Reboot recommended for cgroup functionality:${NC}"
-echo "  sudo reboot"
+main "$@"

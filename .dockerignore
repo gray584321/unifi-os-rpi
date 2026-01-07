@@ -1,0 +1,13 @@
+.git
+.gitignore
+docs
+*.md
+*.log
+.env
+.env.*
+.vscode
+.idea/
+.docker/
+docker-compose.override.yaml
+testing/
+tmp/

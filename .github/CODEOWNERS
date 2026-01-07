@@ -1,0 +1,9 @@
+# =============================================================================
+# CODEOWNERS - Auto-assign reviewers for PRs
+# =============================================================================
+
+*   @unifi-os-rpi/maintainers
+
+/docker/  @unifi-os-rpi/maintainers
+/scripts/ @unifi-os-rpi/maintainers
+.github/workflows/ @unifi-os-rpi/maintainers

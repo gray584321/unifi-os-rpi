@@ -11,6 +11,10 @@ Base image: `ghcr.io/lemker/unifi-os-server:5.0.6-linux-arm64`
 ## Commands
 
 ```bash
+# Configure environment (required before first run)
+cp .env.example .env
+# Edit .env and set UOS_SYSTEM_IP to your Pi's hostname/IP
+
 # Installation
 sudo ./scripts/install.sh
 
@@ -40,6 +44,13 @@ The container runs **systemd as PID 1**, which requires:
 - `cgroupns: host` - Share host cgroup namespace
 - `cap_add: SYS_ADMIN` - Full systemd capabilities
 - `sysctls.net.ipv4.ip_unprivileged_port_start=0` - Allow low ports
+
+Persistent data is stored in 5 volumes mapped from host storage:
+- `/data` - UniFi OS system configuration
+- `/var/log/unifi` - Application logs
+- `/certs` - SSL certificates
+- `/var/lib/unifi` - UniFi application data
+- `/var/lib/mongodb` - MongoDB database (must be on USB SSD)
 
 ## Key Files
 

@@ -1,23 +1,24 @@
 ---
 services:
   unifi-os-server:
-    image: ghcr.io/lemker/unifi-os-server:5.0.6-linux-arm64
+    image: unifi-os-rpi/unifi-os-server:latest
     container_name: unifi-os-server
     privileged: true
     sysctls:
       - net.ipv4.ip_unprivileged_port_start=0
     cap_add:
       - SYS_ADMIN
+    cgroupns: host
     environment:
       - TZ=${TZ:-UTC}
-      - UOS_SYSTEM_IP=${UOS_SYSTEM_IP}
-      # - UOS_UUID=${UOS_UUID:-}
+      - UOS_SYSTEM_IP=${UOS_SYSTEM_IP:-}
+      - UOS_UUID=${UOS_UUID:-}
     volumes:
-      - ${DATA_DIR}/data:/data
-      - ${DATA_DIR}/logs:/var/log/unifi
-      - ${DATA_DIR}/certs:/certs
-      - ${DATA_DIR}/var-lib-unifi:/var/lib/unifi
-      - ${DATA_DIR}/var-lib-mongodb:/var/lib/mongodb
+      - ${DATA_DIR:-/opt/unifi-os}/data:/data
+      - ${DATA_DIR:-/opt/unifi-os}/logs:/var/log/unifi
+      - ${DATA_DIR:-/opt/unifi-os}/certs:/certs
+      - ${DATA_DIR:-/opt/unifi-os}/var-lib-unifi:/var/lib/unifi
+      - ${DATA_DIR:-/opt/unifi-os}/var-lib-mongodb:/var/lib/mongodb
     ports:
       - "11443:443"
       - "8080:8080"
@@ -32,8 +33,13 @@ services:
       - "8882:8882"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://localhost:11443"]
+      test: ["CMD", "curl", "-kf", "https://localhost:11443"]
       interval: 60s
       timeout: 10s
       retries: 3
       start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
